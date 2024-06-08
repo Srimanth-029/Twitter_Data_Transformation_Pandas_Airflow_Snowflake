@@ -1,0 +1,63 @@
+create database if not exists Twitter;
+
+create schema if not exists twitter_data;
+
+create or replace table Twitter_File_Data(
+username varchar(500),
+verified Boolean,
+accountCreated timestamp, 
+userUrl varchar(500),
+tweetContent varchar(2000),
+tweetUrl varchar(500),
+tweetPosted timestamp,
+media varchar(500),
+likeCount int,
+replyCount int,
+retweetCount int,
+quotedUser varchar(500),
+quotedContent varchar(2000),
+quotedUrl varchar(500)
+);
+
+create or replace file format twitter_transformed_data
+type = 'CSV',
+field_delimiter = ',',
+skip_header = 1,
+field_optionally_enclosed_by = '"',
+escape = '\\';
+
+create or replace storage integration Twiiter_S3
+    TYPE = EXTERNAL_STAGE,
+    STORAGE_PROVIDER = 'S3',
+    ENABLED = TRUE,
+    STORAGE_ALLOWED_LOCATIONS = ('s3://twitter-transformed-data/'),
+    STORAGE_AWS_ROLE_ARN = 'arn:aws:iam::211125306265:role/S3-Snowflake',
+    COMMENT = 'Storage Integration to flow the transformed data into snowflake DB';
+
+desc storage integration Twiiter_S3;
+
+create or replace stage twiiter_aws
+    url = 's3://twitter-transformed-data/',
+    storage_integration = Twiiter_S3,
+    file_format = twitter_transformed_data;
+
+create or replace pipe twitter_trigger 
+Auto_Ingest = True
+as
+copy into Twitter_File_Data
+from @twiiter_aws
+-- files = ('Twitter_ETL_Data2024-06-08 00:39:55.868703.csv'),
+file_format = twitter_transformed_data;
+
+show pipes;
+
+select * from Twitter_File_Data;
+
+select * from information_schema.load_history;
+
+select * from table(information_schema.pipe_usage_history(date_range_start => dateadd('minutes',-5,current_timestamp())));
+
+select *
+  from table(information_schema.pipe_usage_history())(
+    date_range_start=>to_timestamp_tz('2017-10-24 12:00:00.000 -0700'),
+    date_range_end=>to_timestamp_tz('2017-10-24 12:30:00.000 -0700')));
