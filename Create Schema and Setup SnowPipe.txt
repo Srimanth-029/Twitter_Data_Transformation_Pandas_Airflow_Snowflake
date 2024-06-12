@@ -2,62 +2,42 @@ create database if not exists Twitter;
 
 create schema if not exists twitter_data;
 
-create or replace table Twitter_File_Data(
-username varchar(500),
-verified Boolean,
-accountCreated timestamp, 
-userUrl varchar(500),
-tweetContent varchar(2000),
-tweetUrl varchar(500),
-tweetPosted timestamp,
-media varchar(500),
-likeCount int,
-replyCount int,
-retweetCount int,
-quotedUser varchar(500),
-quotedContent varchar(2000),
-quotedUrl varchar(500)
+--We will be using the same schema and database and notification ARN configurations between snowpipe and S3 bucket.
+create or replace table twitter_data_2
+(
+    author varchar(500),
+    content varchar(2000),
+    date_time timestamp,
+    language varchar(5),
+    number_of_likes int,
+    number_of_shares int,
+    created_by varchar(50) default current_user(),
+    created_date timestamp default current_timestamp()
 );
 
-create or replace file format twitter_transformed_data
-type = 'CSV',
-field_delimiter = ',',
-skip_header = 1,
-field_optionally_enclosed_by = '"',
-escape = '\\';
+desc table twitter_data_2;
 
-create or replace storage integration Twiiter_S3
-    TYPE = EXTERNAL_STAGE,
-    STORAGE_PROVIDER = 'S3',
-    ENABLED = TRUE,
-    STORAGE_ALLOWED_LOCATIONS = ('s3://twitter-transformed-data/'),
-    STORAGE_AWS_ROLE_ARN = 'arn:aws:iam::211125306265:role/S3-Snowflake',
-    COMMENT = 'Storage Integration to flow the transformed data into snowflake DB';
-
-desc storage integration Twiiter_S3;
-
-create or replace stage twiiter_aws
-    url = 's3://twitter-transformed-data/',
-    storage_integration = Twiiter_S3,
-    file_format = twitter_transformed_data;
-
-create or replace pipe twitter_trigger 
-Auto_Ingest = True
+create or replace pipe twitter_data_2
+auto_ingest = True
 as
-copy into Twitter_File_Data
-from @twiiter_aws
--- files = ('Twitter_ETL_Data2024-06-08 00:39:55.868703.csv'),
-file_format = twitter_transformed_data;
+copy into twitter_data_2(author,content,date_time,language,number_of_likes,number_of_shares)
+from (select $1,	$2,$3,	$4,	$5,$6 from @twiiter_aws)
 
-show pipes;
+select * from @twiiter_aws
 
-select * from Twitter_File_Data;
+desc pipe twitter_data_2
 
-select * from information_schema.load_history;
-
-select * from table(information_schema.pipe_usage_history(date_range_start => dateadd('minutes',-5,current_timestamp())));
+select * from twitter_data_2
+where created_date <= current_timestamp
 
 select *
-  from table(information_schema.pipe_usage_history())(
-    date_range_start=>to_timestamp_tz('2017-10-24 12:00:00.000 -0700'),
-    date_range_end=>to_timestamp_tz('2017-10-24 12:30:00.000 -0700')));
+  from table(information_schema.validate_pipe_load(
+    pipe_name => 'twitter_data_2',
+    start_time=>dateadd('minute',-30,current_timestamp()))),
+    end_time => dateadd(day,0,current_timestamp())))
+
+select *
+  from table(information_schema.pipe_usage_history(
+    date_range_start=>dateadd('day',0,current_date())));
+select current_timestamp();
+
