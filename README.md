@@ -1,4 +1,4 @@
 # Twitter_Data_Transformation_Pandas_Snowflake
 Dowwnloaded Dataset from kaggle, stored the file in S3 bucket, applied extensive transformations using pandas by retrieving data from S3 and removing nulls, duplicates and unnecessary columns and loading clean file to S3 Bucket, created snowpipe to load and store this cleansed data into  our snowflake table.
 Have used Boto3 library to connect to S3 Bucket and loaded data from S3 Bucket to a dataframe and then apply transformations like removing columns, duplicates, nulls and then using StringIO instance we convert this transformed data into a csv file and then retrieve the file data using getvalue() function on the StringIO() instance and then load this data S3 bucket.
-Now we have created snowpipe using a stage which is integrated to the S3 Bucket to load the file_data into the snowflake table.
+Now we have created snowpipe using a stage which is integrated to the S3 Bucket to load the file_data into the snowflake table....
